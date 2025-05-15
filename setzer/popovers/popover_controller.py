@@ -1,0 +1,6 @@
+from setzer.popovers.context_menu.context_menu import ContextMenuController 
+from setzer.popovers.document_chooser.document_chooser import DocumentChooserController
+from setzer.popovers.document_switcher.document_switcher import DocumentSwitcherController
+from setzer.popovers.shortcutsbar.shortcutsbar import ShortcutBarController
+from setzer.popovers.preview_zoom_level.preview_zoom_level import PreviewZoomLevelController
+from setzer.popovers.hamburger_menu.hamburger_menu import HamburgerMenuController

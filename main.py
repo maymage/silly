@@ -17,7 +17,7 @@
 
 import os
 # Force X11 backend to avoid Wayland protocol errors during development
-os.environ.setdefault('GDK_BACKEND', 'x11')
+#os.environ.setdefault('GDK_BACKEND', 'x11')
 import sys
 import gi
 import gettext
@@ -55,8 +55,6 @@ class MainApplicationController(Adw.Application):
         if not self.is_active:
             self.activate()
             self.is_active = True
-        # ... existing open logic ...
-
     def do_activate(self):
         if not self.is_active:
             self.activate()
@@ -121,6 +119,40 @@ class MainApplicationController(Adw.Application):
 
     def on_quit_action(self, action, parameter=None):
         self.save_quit()
+        
+    def save_quit(self):
+        # Check if there are unsaved documents
+        unsaved_docs = [doc for doc in self.workspace.open_documents if doc.source_buffer.get_modified()]
+        
+        if unsaved_docs:
+            # Use the close confirmation dialog for the first unsaved document
+            dialog = DialogLocator.get_dialog('close_confirmation')
+            parameters = {'unsaved_document': unsaved_docs[0]}
+            dialog.run(parameters, self.on_save_quit_response)
+        else:
+            # No unsaved changes, quit directly
+            self.quit()
+
+    def on_save_quit_response(self, parameters):
+        document = parameters['unsaved_document']
+        response = parameters['response']
+        
+        if response == 2:  # Save
+            if document.get_filename() != None:
+                document.save_document()
+                self.save_quit()  # Continue with remaining unsaved docs
+            else:
+                # Create a wrapper method that ignores parameters
+                def save_callback(args=None):
+                    self.save_quit()
+                
+                save_dialog = DialogLocator.get_dialog('save_document')
+                save_dialog.run(document, save_callback)
+        elif response == 0:  # Discard
+            document.source_buffer.set_modified(False)
+            self.save_quit()  # Continue with remaining unsaved docs
+        elif response == 1:  # Cancel
+            pass  # Don't quit
 
     # Bestehende Methoden: save_quit, save_quit_callback, save_callback, save_state_and_quit
     # ...
@@ -129,4 +161,3 @@ if __name__ == '__main__':
     main_controller = MainApplicationController()
     exit_status = main_controller.run(sys.argv)
     sys.exit(exit_status)
-

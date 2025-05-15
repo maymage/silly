@@ -50,7 +50,7 @@ class CloseConfirmationDialog(object):
 
         # Create AlertDialog
         dialog = Adw.AlertDialog()
-        dialog.set_heading(_('Save Czhanges?'))
+        dialog.set_heading(_('Save Changes?'))
 
         # Set message with document name
         doc_name = document.get_displayname()

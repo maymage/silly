@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # coding: utf-8
-
 # Copyright (C) 2017-present Robert Griesel
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,8 +16,8 @@
 
 import gi
 gi.require_version('Gtk', '4.0')
-from gi.repository import Gtk
-
+gi.require_version('Adw', '1')
+from gi.repository import Gtk, Adw
 import setzer.dialogs.preferences.preferences_viewgtk as view
 import setzer.dialogs.preferences.pages.page_build_system as page_build_system
 import setzer.dialogs.preferences.pages.page_editor as page_editor
@@ -26,9 +25,7 @@ import setzer.dialogs.preferences.pages.page_font_color as page_font_color
 import setzer.dialogs.preferences.pages.page_autocomplete as page_autocomplete
 from setzer.app.service_locator import ServiceLocator
 
-
 class PreferencesDialog(object):
-
     def __init__(self, main_window):
         self.main_window = main_window
         self.settings = ServiceLocator.get_settings()
@@ -40,16 +37,54 @@ class PreferencesDialog(object):
     def setup(self):
         self.view = view.Preferences(self.main_window)
 
+        # Create page instances
         self.page_build_system = page_build_system.PageBuildSystem(self, self.settings)
         self.page_editor = page_editor.PageEditor(self, self.settings)
         self.page_font_color = page_font_color.PageFontColor(self, self.settings, self.main_window)
         self.page_autocomplete = page_autocomplete.PageAutocomplete(self, self.settings)
 
-        self.view.notebook.append_page(self.page_build_system.view, Gtk.Label.new(_('Build System')))
-        self.view.notebook.append_page(self.page_editor.view, Gtk.Label.new(_('Editor')))
-        self.view.notebook.append_page(self.page_font_color.view, Gtk.Label.new(_('Font & Colors')))
-        self.view.notebook.append_page(self.page_autocomplete.view, Gtk.Label.new(_('Autocomplete')))
-
+        # Create a view stack to hold the pages
+        self.view_stack = Adw.ViewStack()
+        
+        # Add pages to the view stack with titles and icons
+        self.view_stack.add_titled_with_icon(
+            self.page_build_system.view, 
+            'build_system', 
+            _('Build System'),
+            'document-new-symbolic'
+        )
+        
+        self.view_stack.add_titled_with_icon(
+            self.page_editor.view,
+            'editor',
+            _('Editor'),
+            'document-edit-symbolic'
+        )
+        
+        self.view_stack.add_titled_with_icon(
+            self.page_font_color.view,
+            'font_color',
+            _('Font & Colors'),
+            'font-x-generic-symbolic'
+        )
+        
+        self.view_stack.add_titled_with_icon(
+            self.page_autocomplete.view,
+            'autocomplete',
+            _('Autocomplete'),
+            'completion-snippet-symbolic'
+        )
+        
+        # Create a view switcher for the stack
+        self.view_switcher = Adw.ViewSwitcher()
+        self.view_switcher.set_stack(self.view_stack)
+        self.view_switcher.set_policy(Adw.ViewSwitcherPolicy.WIDE)
+        
+        # Add the view switcher and stack to the view
+        self.view.set_header_widget(self.view_switcher)
+        self.view.set_content(self.view_stack)
+        
+        # Initialize all pages
         self.page_build_system.init()
         self.page_editor.init()
         self.page_font_color.init()
@@ -72,5 +107,3 @@ class PreferencesDialog(object):
 
     def on_interpreter_changed(self, button, preference_name, value):
         self.settings.set_value('preferences', preference_name, value)
-
-

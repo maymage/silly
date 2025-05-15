@@ -17,8 +17,8 @@
 
 import gi
 gi.require_version('Gtk', '4.0')
-from gi.repository import Gtk
-from gi.repository import Gdk
+gi.require_version('Adw', '1')
+from gi.repository import Gtk, Adw
 
 from setzer.dialogs.helpers.dialog_viewgtk import DialogView
 
@@ -31,11 +31,27 @@ class Preferences(DialogView):
         self.set_can_focus(False)
         self.set_size_request(400, 250)
         self.set_default_size(400, 250)
-        self.headerbar.set_title_widget(Gtk.Label.new(_('Preferences')))
+        
+        # Create title label
+        self.title_label = Gtk.Label.new(_('Preferences'))
+        self.headerbar.set_title_widget(self.title_label)
+        
+        # Create a container for the view stack
+        self.content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.content_box.set_vexpand(True)
+        self.topbox.append(self.content_box)
 
-        self.notebook = Gtk.Notebook()
-        self.notebook.set_show_tabs(True)
-        self.notebook.set_vexpand(True)
-        self.topbox.append(self.notebook)
-
-
+    def set_header_widget(self, widget):
+        """Set the widget that should appear in the headerbar"""
+        # Remove the title label first
+        self.headerbar.set_title_widget(None)
+        # Set the view switcher as the title widget
+        self.headerbar.set_title_widget(widget)
+        
+    def set_content(self, widget):
+        """Set the main content widget"""
+        # Remove any existing content first
+        for child in self.content_box:
+            self.content_box.remove(child)
+        # Add the new widget
+        self.content_box.append(widget)

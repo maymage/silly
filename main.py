@@ -30,7 +30,7 @@ sys.path.insert(0, PROJECT_ROOT)
 # GTK/Adwaita Versionen
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-from gi.repository import Gtk, Gio, Adw
+from gi.repository import Gtk, Gio, Adw, Gdk
 
 # Setzer-Module imports
 from setzer.workspace.workspace import Workspace
@@ -71,7 +71,46 @@ class MainApplicationController(Adw.Application):
 
         # Einstellungen und Theme
         self.settings = ServiceLocator.get_settings()
-        Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_LIGHT)
+        
+        # Ensure Adwaita styling is loaded
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(),
+            Gtk.CssProvider.new(),
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+        
+        # Apply the selected theme
+        theme_setting = self.settings.get_value('preferences', 'theme')
+        style_manager = Adw.StyleManager.get_default()
+        
+        # Enable color schemes
+        style_manager.set_color_scheme(Adw.ColorScheme.PREFER_LIGHT)  # First reset
+        
+        if theme_setting == 'system':
+            style_manager.set_color_scheme(Adw.ColorScheme.DEFAULT)
+        elif theme_setting == 'light':
+            style_manager.set_color_scheme(Adw.ColorScheme.FORCE_LIGHT)
+        elif theme_setting == 'dark':
+            style_manager.set_color_scheme(Adw.ColorScheme.FORCE_DARK)
+        else:
+            # Fallback to system if the setting is invalid
+            style_manager.set_color_scheme(Adw.ColorScheme.DEFAULT)
+        
+        # Handle settings changes directly instead of using observer pattern
+        # We'll connect to the settings change signal if it exists, otherwise
+        # we'll manually check for theme changes when needed
+        try:
+            # Try to use the existing method if it exists
+            self.settings.add_change_code_observer(self.on_settings_changed)
+        except AttributeError:
+            # Alternative: Set up a periodic check for theme changes or
+            # implement a different pattern to detect settings changes
+            print("Settings observer not available - using fallback mechanism")
+            # You could implement a direct connection or periodic check here
+            
+        # Print debug info about theme
+        print(f"Theme setting: {theme_setting}")
+        print(f"Is dark theme: {style_manager.get_dark()}")
 
         # ServiceLocator konfigurieren
         ServiceLocator.set_setzer_version('@setzer_version@')
@@ -119,6 +158,25 @@ class MainApplicationController(Adw.Application):
 
     def on_quit_action(self, action, parameter=None):
         self.save_quit()
+        
+    def on_settings_changed(self, change_code, change_obj):
+        """Handle settings changes, especially theme changes"""
+        if change_code == 'settings_changed':
+            section, item, value = change_obj
+            
+            # Apply theme changes
+            if section == 'preferences' and item == 'theme':
+                style_manager = Adw.StyleManager.get_default()
+                
+                if value == 'system':
+                    style_manager.set_color_scheme(Adw.ColorScheme.DEFAULT)
+                elif value == 'light':
+                    style_manager.set_color_scheme(Adw.ColorScheme.FORCE_LIGHT)
+                elif value == 'dark':
+                    style_manager.set_color_scheme(Adw.ColorScheme.FORCE_DARK)
+                
+                print(f"Theme changed to: {value}")
+                print(f"Is dark theme: {style_manager.get_dark()}")
         
     def save_quit(self):
         # Check if there are unsaved documents

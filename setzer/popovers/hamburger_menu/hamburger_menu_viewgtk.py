@@ -22,13 +22,18 @@ from gi.repository import Gtk
 from setzer.popovers.helpers.popover_menu_builder import MenuBuilder
 from setzer.popovers.helpers.popover import Popover
 
+# Import Adwaita
+import gi
+gi.require_version('Adw', '1')
+from gi.repository import Adw, Pango
+
 
 class HamburgerMenuView(Popover):
 
     def __init__(self, popover_manager):
         Popover.__init__(self, popover_manager)
 
-        self.set_width(306)
+        self.set_width(280)
 
         self.button_save_as = MenuBuilder.create_button(_('Save Document As') + '...', shortcut=_('Shift') + '+' + _('Ctrl') + '+S')
         self.button_save_as.set_action_name('win.save-as')
@@ -40,6 +45,77 @@ class HamburgerMenuView(Popover):
 
         self.add_widget(Gtk.Separator.new(Gtk.Orientation.HORIZONTAL))
 
+        # Theme selector with three circles directly in main menu
+        self.theme_box = Gtk.Box.new(Gtk.Orientation.HORIZONTAL, 8)
+        self.theme_box.set_halign(Gtk.Align.CENTER)
+        self.theme_box.set_margin_top(10)
+        self.theme_box.set_margin_bottom(10)
+        
+        # System theme button
+        self.system_theme_button = self.create_theme_button('system', _('System'))
+        self.theme_box.append(self.system_theme_button)
+        
+        # Light theme button
+        self.light_theme_button = self.create_theme_button('light', _('Light'))
+        self.theme_box.append(self.light_theme_button)
+        
+        # Dark theme button
+        self.dark_theme_button = self.create_theme_button('dark', _('Dark'))
+        self.theme_box.append(self.dark_theme_button)
+        
+        self.add_widget(self.theme_box)
+        
+        # Simple zoom controls with zoom value between minus and plus buttons
+        self.zoom_box = Gtk.Box.new(Gtk.Orientation.HORIZONTAL, 0)
+        self.zoom_box.set_margin_top(10)
+        self.zoom_box.set_margin_bottom(10)
+        self.zoom_box.set_halign(Gtk.Align.CENTER)
+        
+        # Create a linked button group
+        self.zoom_button_box = Gtk.Box.new(Gtk.Orientation.HORIZONTAL, 0)
+        self.zoom_button_box.add_css_class("linked")
+        
+        # Zoom out button
+        self.zoom_out_button = Gtk.Button.new_from_icon_name("zoom-out-symbolic")
+        self.zoom_out_button.set_action_name("win.preview-zoom-out")
+        self.zoom_button_box.append(self.zoom_out_button)
+        
+        # Zoom level button in the center (acts as reset)
+        self.zoom_level_button = Gtk.Button()
+        self.zoom_level_button.set_action_name("win.preview-zoom-original")
+        
+        # Create label with system monospace font
+        from gi.repository import Pango
+        from setzer.app.font_manager import FontManager
+        
+        # Create label with system monospace font
+        zoom_label = Gtk.Label.new("100%")
+        zoom_label.set_width_chars(4)  # Set width for the label
+        
+        # Get system font and modify to bold
+        font_desc = Pango.FontDescription.from_string(FontManager.default_font_string)
+        font_desc.set_weight(Pango.Weight.BOLD)  # Make it bold
+        
+        # Apply the font to the label
+        attr_list = Pango.AttrList()
+        attr_list.insert(Pango.attr_font_desc_new(font_desc))
+        zoom_label.set_attributes(attr_list)
+        
+        # Set the label as the button's child
+        self.zoom_level_button.set_child(zoom_label)
+        self.zoom_button_box.append(self.zoom_level_button)
+        
+        # Zoom in button
+        self.zoom_in_button = Gtk.Button.new_from_icon_name("zoom-in-symbolic")
+        self.zoom_in_button.set_action_name("win.preview-zoom-in")
+        self.zoom_button_box.append(self.zoom_in_button)
+        
+        self.zoom_box.append(self.zoom_button_box)
+        
+        self.add_widget(self.zoom_box)
+        
+        self.add_widget(Gtk.Separator.new(Gtk.Orientation.HORIZONTAL))
+        
         self.add_menu_button(_('Session'), 'session')
 
         self.add_widget(Gtk.Separator.new(Gtk.Orientation.HORIZONTAL))
@@ -96,5 +172,88 @@ class HamburgerMenuView(Popover):
         self.add_closing_button(self.button_save_session, pagename='session')
         self.add_widget(self.session_box_separator, pagename='session')
         self.add_widget(self.prev_sessions_box, pagename='session')
+        
+        # Theme submenu removed - theme buttons are now in main menu
+        
+    def create_theme_button(self, theme_id, label_text):
+        """Create a circular theme button in GNOME style"""
+        from gi.repository import Adw
+        from setzer.app.service_locator import ServiceLocator
+        
+        # Get settings
+        settings = ServiceLocator.get_settings()
+        current_theme = settings.get_value('preferences', 'theme')
+        
+        # Create a box for the button contents
+        box = Gtk.Box.new(Gtk.Orientation.VERTICAL, 6)
+        box.set_halign(Gtk.Align.CENTER)
+        
+        # Create the circular button
+        button = Gtk.Button()
+        button.set_size_request(40, 40)  # Make it more compact
+        
+        # Use GTK4 css_classes instead of get_style_context()
+        button.add_css_class('circular')
+        button.add_css_class(f'theme-{theme_id}')
+        
+        # Add selected indicator
+        if current_theme == theme_id:
+            button.add_css_class('selected')
+        
+        # Set up the button click handler
+        button.connect('clicked', self.on_theme_button_clicked, theme_id)
+        
+        # Add hover feedback
+        button.add_css_class('theme-button')
+        
+        # Add the button to our container
+        box.append(button)
+        
+        # Add a label below the button
+        label = Gtk.Label.new(label_text)
+        label.add_css_class('caption')
+        box.append(label)
+        
+        return box
+        
+    def on_theme_button_clicked(self, button, theme_id):
+        from gi.repository import Adw
+        from setzer.app.service_locator import ServiceLocator
+        
+        # Get settings and style manager
+        settings = ServiceLocator.get_settings()
+        style_manager = Adw.StyleManager.get_default()
+        
+        # Update settings
+        settings.set_value('preferences', 'theme', theme_id)
+        
+        # Update the theme
+        if theme_id == 'system':
+            style_manager.set_color_scheme(Adw.ColorScheme.DEFAULT)
+        elif theme_id == 'light':
+            style_manager.set_color_scheme(Adw.ColorScheme.FORCE_LIGHT)
+        elif theme_id == 'dark':
+            style_manager.set_color_scheme(Adw.ColorScheme.FORCE_DARK)
+            
+        # Update UI to show which button is selected
+        # In GTK4, we need to iterate differently through children
+        child = self.theme_box.get_first_child()
+        while child:
+            if isinstance(child, Gtk.Box):
+                button = child.get_first_child()
+                if button and button.has_css_class('selected'):
+                    button.remove_css_class('selected')
+            child = child.get_next_sibling()
+                    
+        # Find the clicked button and mark it as selected
+        child = self.theme_box.get_first_child()
+        while child:
+            if isinstance(child, Gtk.Box):
+                button = child.get_first_child()
+                if button and button.has_css_class(f'theme-{theme_id}'):
+                    button.add_css_class('selected')
+            child = child.get_next_sibling()
+        
+        # Keep the menu open - don't close it after theme selection
 
-
+# Remove the duplicate AdwSplitButton implementation since we're using the standard buttons

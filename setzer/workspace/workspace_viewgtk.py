@@ -18,7 +18,7 @@
 import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-from gi.repository import Adw, Gdk, Gtk
+from gi.repository import Adw, Gdk, Gtk, Gio
 
 import setzer.workspace.build_log.build_log_viewgtk as build_log_view
 import setzer.workspace.headerbar.headerbar_viewgtk as headerbar_view
@@ -43,6 +43,48 @@ class MainWindow(Adw.ApplicationWindow):
 
         self.popoverlay = Gtk.Overlay()
         self.set_content(self.popoverlay)
+
+        # Set up window actions including zoom controls
+        self.setup_actions()
+
+    def setup_actions(self):
+        """Register window actions for the application"""
+        # Add zoom actions for preview
+        zoom_in_action = Gio.SimpleAction.new('preview-zoom-in', None)
+        zoom_in_action.connect('activate', self.on_preview_zoom_in)
+        self.add_action(zoom_in_action)
+        
+        zoom_out_action = Gio.SimpleAction.new('preview-zoom-out', None)
+        zoom_out_action.connect('activate', self.on_preview_zoom_out)
+        self.add_action(zoom_out_action)
+        
+        zoom_original_action = Gio.SimpleAction.new('preview-zoom-original', None)
+        zoom_original_action.connect('activate', self.on_preview_zoom_original)
+        self.add_action(zoom_original_action)
+
+    def on_preview_zoom_in(self, action, parameter):
+        """Handle zoom in action from hamburger menu"""
+        workspace = ServiceLocator.get_workspace()
+        document = workspace.get_active_document()
+        if document and hasattr(document, 'preview') and document.preview.pdf_filename:
+            document.preview.zoom_manager.zoom_in()
+            workspace.add_change_code('preview_state_change')
+
+    def on_preview_zoom_out(self, action, parameter):
+        """Handle zoom out action from hamburger menu"""
+        workspace = ServiceLocator.get_workspace()
+        document = workspace.get_active_document()
+        if document and hasattr(document, 'preview') and document.preview.pdf_filename:
+            document.preview.zoom_manager.zoom_out()
+            workspace.add_change_code('preview_state_change')
+
+    def on_preview_zoom_original(self, action, parameter):
+        """Handle reset zoom to 100% action from hamburger menu"""
+        workspace = ServiceLocator.get_workspace()
+        document = workspace.get_active_document()
+        if document and hasattr(document, 'preview') and document.preview.pdf_filename:
+            document.preview.zoom_manager.set_zoom_level(1.0)  # Reset to 100%
+            workspace.add_change_code('preview_state_change')
 
     def create_widgets(self):
         self.shortcutsbar = shortcutsbar_view.Shortcutsbar()
@@ -102,5 +144,59 @@ class MainWindow(Adw.ApplicationWindow):
         Gtk.StyleContext.add_provider_for_display(self.get_display(), self.css_provider_font_size, Gtk.STYLE_PROVIDER_PRIORITY_USER)
         self.css_provider_colors = Gtk.CssProvider()
         Gtk.StyleContext.add_provider_for_display(self.get_display(), self.css_provider_colors, Gtk.STYLE_PROVIDER_PRIORITY_USER)
+        
+        # Add CSS for theme selectors
+        self.css_provider_theme_selectors = Gtk.CssProvider()
+        self.css_provider_theme_selectors.load_from_data(b"""
+            button.circular {
+                border-radius: 32px;
+                min-width: 64px;
+                min-height: 64px;
+            }
+            
+            button.theme-system {
+                background: linear-gradient(145deg, #f6f5f4 0%, #f6f5f4 50%, #3d3846 50%, #3d3846 100%);
+                border: 1px solid #d3d2d0;
+            }
+            
+            button.theme-light {
+                background-color: #f6f5f4;
+                border: 1px solid #d3d2d0;
+            }
+            
+            button.theme-dark {
+                background-color: #3d3846;
+                border: 1px solid #5e5c64;
+            }
+            
+            button.theme-button {
+                transition: transform 0.1s ease-in-out;
+            }
+            
+            button.theme-button:hover {
+                transform: scale(1.05);
+            }
+            
+            button.selected {
+                box-shadow: 0 0 0 3px #3584e4;
+            }
+            
+            /* Simple button styling for zoom controls */
+            .linked button {
+                padding: 6px 8px;
+                min-height: 32px;
+            }
+            
+            .linked button:first-child {
+                border-top-right-radius: 0;
+                border-bottom-right-radius: 0;
+            }
+            
+            .linked button:last-child {
+                border-top-left-radius: 0;
+                border-bottom-left-radius: 0;
+            }
+        """, -1)
+        Gtk.StyleContext.add_provider_for_display(self.get_display(), self.css_provider_theme_selectors, Gtk.STYLE_PROVIDER_PRIORITY_USER)
 
 

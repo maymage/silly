@@ -34,11 +34,43 @@ class HamburgerMenu(object):
         self.session_file_buttons = list()
         self.view.button_restore_session.connect('clicked', self.on_restore_session_click, None)
 
+        # Update zoom level when popover shows, when document changes, or when preview changes
+        self.popover_manager.connect('shown', self.update_zoom_level)
+        self.workspace.connect('document_changed', self.update_zoom_level)
+        self.workspace.connect('preview_state_change', self.update_zoom_level)
+        
+        # Update zoom when active document changes
+        self.workspace.connect('active_document_changed', self.update_zoom_level)
+    
         self.key_controller = Gtk.EventControllerKey()
         self.key_controller.connect('key-pressed', self.on_keypress)
         self.view.add_controller(self.key_controller)
-
-        self.workspace.connect('update_recently_opened_session_files', self.on_update_recently_opened_session_files)
+    
+    def update_zoom_level(self, *args):
+        """Update the PDF preview zoom level display in the hamburger menu"""
+        document = self.workspace.get_active_document()
+        if document and hasattr(document, 'preview') and document.preview.pdf_filename:
+            # Get the zoom level from the preview zoom manager and format as integer percentage
+            zoom_level = int(document.preview.zoom_manager.zoom_level * 100)
+            
+            # Update the correct label - check if we're using button or child label
+            zoom_label = self.view.zoom_level_button.get_child()
+            if zoom_label is not None:
+                zoom_label.set_text(f"{zoom_level}%")
+            else:
+                self.view.zoom_level_button.set_label(f"{zoom_level}%")
+            
+            # Enable the zoom controls
+            self.view.zoom_button_box.set_sensitive(True)
+        else:
+            # Disable the zoom controls if no PDF preview is available
+            zoom_label = self.view.zoom_level_button.get_child()
+            if zoom_label is not None:
+                zoom_label.set_text("—")
+            else:
+                self.view.zoom_level_button.set_label("—")
+            
+            self.view.zoom_button_box.set_sensitive(False)
 
     def on_keypress(self, controller, keyval, keycode, state):
         modifiers = Gtk.accelerator_get_default_mod_mask()
@@ -99,5 +131,9 @@ class HamburgerMenu(object):
             else:
                 document.save_to_disk()
                 self.restore_session_cb(parameters['session_filename'])
+def update_zoom_level(self):
+    zoom_level = self.document.preview.zoom_manager.get_zoom_level()
 
-
+    if zoom_level != None:
+        # Format as integer percentage instead of decimal
+        self.view.zoom_level_label.set_text('{0}%'.format(int(zoom_level * 100)))
